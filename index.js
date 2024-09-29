@@ -3,25 +3,25 @@ import bodyParser from "body-parser";
 import firebaseAdmin from "firebase-admin";
 import fs from "fs";
 import cors from "cors";
-import bcrypt from "bcrypt"; 
+import bcrypt from "bcrypt";
 
 const serviceAccount = JSON.parse(fs.readFileSync('./aifitnessapplication-firebase-adminsdk-warn3-976c0e1159.json', 'utf8'));
 
 firebaseAdmin.initializeApp({
-  credential: firebaseAdmin.credential.cert(serviceAccount)
+  credential: firebaseAdmin.credential.cert(serviceAccount),
+  databaseURL: "https://aifitnessapplication-default-rtdb.firebaseio.com"
 });
 
 const db = firebaseAdmin.firestore();
 const app = express();
 
 app.use(cors({
-  origin: 'http://localhost:3000', 
+  origin: 'http://localhost:3000',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true
 }));
 app.use(bodyParser.json());
 
-// Add user endpoint
 app.post('/addUser', async (req, res) => {
   const { password, email } = req.body;
 
@@ -35,10 +35,10 @@ app.post('/addUser', async (req, res) => {
     if (!existingUserSnapshot.empty) {
       return res.status(400).send({ error: 'Email already exists. Please Login' });
     } else {
-      const hashedPassword = await bcrypt.hash(password, 10); 
+      const hashedPassword = await bcrypt.hash(password, 10);
       const userRef = db.collection('users').doc();
       await userRef.set({
-        password: hashedPassword, 
+        password: hashedPassword,
         email
       });
       res.status(201).send({ message: 'User added successfully!' });
@@ -50,7 +50,6 @@ app.post('/addUser', async (req, res) => {
   }
 });
 
-// Login endpoint
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
