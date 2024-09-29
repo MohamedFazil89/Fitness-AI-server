@@ -5,7 +5,7 @@ import fs from "fs";
 import cors from "cors";
 import bcrypt from "bcrypt";
 
-const serviceAccount = JSON.parse(fs.readFileSync('./aifitnessapplication-firebase-adminsdk-warn3-7ad05e83a1.json', 'utf8'));
+const serviceAccount = JSON.parse(fs.readFileSync("./aifitnessapplication-firebase-adminsdk-warn3-7ad05e83a1.json", 'utf8'));
 
 firebaseAdmin.initializeApp({
   credential: firebaseAdmin.credential.cert(serviceAccount),
@@ -14,15 +14,14 @@ firebaseAdmin.initializeApp({
 const db = firebaseAdmin.firestore();
 const app = express();
 
-app.use(cors({
-  origin: 'http://localhost:3000',
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true
-}));
+
+app.use(cors());
 app.use(bodyParser.json());
 
 app.post('/addUser', async (req, res) => {
-  const { password, email } = req.body;
+  const { email, password } = req.body;
+  console.log(email, password);
+  
 
   if (!password || !email) {
     return res.status(400).send({ error: 'All fields (password, email) are required.' });
@@ -35,11 +34,12 @@ app.post('/addUser', async (req, res) => {
       return res.status(400).send({ error: 'Email already exists. Please Login' });
     } else {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const userRef = db.collection('users').doc();
-      await userRef.set({
-        password: hashedPassword,
-        email
+      const userRef = db.collection('users');
+      await userRef.add({
+        email,
+        password: hashedPassword
       });
+
       res.status(201).send({ message: 'User added successfully!' });
     }
 
