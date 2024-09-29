@@ -1,84 +1,79 @@
-import express from "express";
-import bodyParser from "body-parser";
-import firebaseAdmin from "firebase-admin";
-import fs from "fs";
-import cors from "cors";
-import bcrypt from "bcrypt";
+var express = require("express");
+var admin = require("firebase-admin");
+var cors = require("cors");
+var app = express();
+var port = 3001;
+const bcrypt = require("bcrypt");
 
-const serviceAccount = JSON.parse(fs.readFileSync("./aifitnessapplication-firebase-adminsdk-warn3-7ad05e83a1.json", 'utf8'));
+var serviceAccount = require("./projects/serviceaccount.json");
 
-firebaseAdmin.initializeApp({
-  credential: firebaseAdmin.credential.cert(serviceAccount),
-  databaseURL: "https://aifitnessapplication-default-rtdb.firebaseio.com"
+app.use(cors({ origin: "*" }));
+app.use(express.json());
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://aifitnessapplication-default-rtdb.firebaseio.com",
 });
-const db = firebaseAdmin.firestore();
-const app = express();
 
+var db = admin.firestore();
 
-app.use(cors());
-app.use(bodyParser.json());
-
-app.post('/addUser', async (req, res) => {
-  const { email, password } = req.body;
-  console.log(email, password);
+app.post("/addUser", async (req, res) => {
+  const { email, password, username, Gender } = req.body;
+  console.log(email, password, username, Gender);
   
 
-  if (!password || !email) {
-    return res.status(400).send({ error: 'All fields (password, email) are required.' });
+  if (!email || !password) {
+    return res.status(400).send("Email and password are required.");
   }
+  const hashedPassword = await bcrypt.hash(password, 10);
+  console.log(hashedPassword);
+  
 
   try {
-    const existingUserSnapshot = await db.collection('users').where('email', '==', email).get();
+    let userRef = db.collection("users");
+    await userRef.add({
+      email: email,
+      password: hashedPassword, 
+    });
 
-    if (!existingUserSnapshot.empty) {
-      return res.status(400).send({ error: 'Email already exists. Please Login' });
-    } else {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const userRef = db.collection('users');
-      await userRef.add({
-        email,
-        password: hashedPassword
-      });
-
-      res.status(201).send({ message: 'User added successfully!' });
-    }
-
+    res.status(200).send("User added successfully.");
   } catch (error) {
-    console.error('Error adding user: ', error);
-    res.status(500).send({ error: 'Error adding user.' });
+    res.status(400).send("Error adding user: " + error.message);
   }
 });
 
-app.post('/login', async (req, res) => {
+// Login route
+
+
+app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).send({ error: 'Email and password are required.' });
+    return res.status(400).send("Email and password are required.");
   }
 
   try {
-    const userSnapshot = await db.collection('users').where('email', '==', email).get();
+    const userSnapshot = await db.collection("users").where("email", "==", email).get();
 
     if (userSnapshot.empty) {
-      return res.status(404).send({ error: 'User not found.' });
+      return res.status(404).send("User not found.");
     }
 
+    // Assuming that emails are unique, we can safely use the first document.
     const userData = userSnapshot.docs[0].data();
 
     const isPasswordCorrect = await bcrypt.compare(password, userData.password);
     if (isPasswordCorrect) {
-      return res.status(200).send({ message: 'Login successful!' });
+      return res.status(200).send("Login successful.");
     } else {
-      return res.status(401).send({ error: 'Invalid password.' });
+      return res.status(401).send("Invalid password.");
     }
   } catch (error) {
-    console.error('Error logging in: ', error);
-    res.status(500).send({ error: 'Error logging in.' });
+    res.status(500).send("Error logging in: " + error.message);
   }
 });
 
-const PORT = 3001;
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "this is a fitness website that manage you mentel health and fitness",
   "main": "index.js",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
@@ -22,6 +22,7 @@
     "express": "^4.21.0",
     "firebase": "^10.13.2",
     "firebase-admin": "^12.5.0",
+    "google-auth-library": "^9.14.1",
     "nodemon": "^3.1.7",
     "punycode": "^2.3.1"
   }
