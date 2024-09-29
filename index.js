@@ -5,13 +5,12 @@ import fs from "fs";
 import cors from "cors";
 import bcrypt from "bcrypt";
 
-const serviceAccount = JSON.parse(fs.readFileSync('./aifitnessapplication-firebase-adminsdk-warn3-976c0e1159.json', 'utf8'));
+const serviceAccount = JSON.parse(fs.readFileSync('./aifitnessapplication-firebase-adminsdk-warn3-7ad05e83a1.json', 'utf8'));
 
 firebaseAdmin.initializeApp({
   credential: firebaseAdmin.credential.cert(serviceAccount),
   databaseURL: "https://aifitnessapplication-default-rtdb.firebaseio.com"
 });
-
 const db = firebaseAdmin.firestore();
 const app = express();
 
@@ -26,7 +25,7 @@ app.post('/addUser', async (req, res) => {
   const { password, email } = req.body;
 
   if (!password || !email) {
-    return res.status(400).send({ error: 'All fields (username, password, email) are required.' });
+    return res.status(400).send({ error: 'All fields (password, email) are required.' });
   }
 
   try {
