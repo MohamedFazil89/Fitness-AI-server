@@ -12,38 +12,33 @@ app.use(express.json());
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://aifitnessapplication-default-rtdb.firebaseio.com",
+  databaseURL: "https://aifitnessapplication-default-rtdb.firebaseio.com"
 });
 
 var db = admin.firestore();
-
 app.post("/addUser", async (req, res) => {
-  const { email, password, username, Gender } = req.body;
-  console.log(email, password, username, Gender);
-  
+  const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).send("Email and password are required.");
   }
+
   const hashedPassword = await bcrypt.hash(password, 10);
-  console.log(hashedPassword);
-  
 
   try {
     let userRef = db.collection("users");
     await userRef.add({
       email: email,
-      password: hashedPassword, 
+      password: hashedPassword,
     });
 
+    console.log("User added successfully");
     res.status(200).send("User added successfully.");
   } catch (error) {
+    console.error("Error adding user:", error);
     res.status(400).send("Error adding user: " + error.message);
   }
 });
-
-// Login route
-
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -59,7 +54,6 @@ app.post("/login", async (req, res) => {
       return res.status(404).send("User not found.");
     }
 
-    // Assuming that emails are unique, we can safely use the first document.
     const userData = userSnapshot.docs[0].data();
 
     const isPasswordCorrect = await bcrypt.compare(password, userData.password);
@@ -74,6 +68,8 @@ app.post("/login", async (req, res) => {
 });
 
 
+
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
-});
+}); 
