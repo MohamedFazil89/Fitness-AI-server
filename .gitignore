@@ -7,10 +7,9 @@
 
 # testing
 /coverage
-
+/ServiceAccount.json
 # production
 /build
-/aifitnessapplication-firebase-adminsdk-warn3-976c0e1159.json
 # misc
 .DS_Store
 .env.local

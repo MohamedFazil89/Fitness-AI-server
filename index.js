@@ -5,7 +5,7 @@ var app = express();
 var port = 3001;
 const bcrypt = require("bcrypt");
 
-var serviceAccount = require("./Service-account.json");
+var serviceAccount = require("./ServiceAccount.json");
 
 app.use(cors({ origin: "*" }));
 app.use(express.json());
@@ -78,6 +78,46 @@ app.post("/login", async (req, res) => {
   } catch (error) {
     res.status(500).send("Error logging in: " + error.message);
     console.error(error.message);
+  }
+});
+
+
+app.post("/BirthPost", async (req, res) => {
+  const { email, username, Gender, birth } = req.body;
+  console.log(email, username, Gender, birth);
+  
+
+  if (!email || !username || !Gender || !birth) {
+    return res.status(400).send("Email, username, gender, and birth date are required.");
+  }
+
+  try {
+    // Find the user document by email
+    const userSnapshot = await db.collection("users").where("email", "==", email).get();
+
+    if (userSnapshot.empty) {
+      return res.status(404).send("User not found.");
+    }
+
+    // Assuming email is unique, we can update the first found document
+    const userDoc = userSnapshot.docs[0].ref;
+
+    // Update the user document with the new birth date
+    await userDoc.update({
+      username: username,
+      gender: Gender,
+      birth: {
+        day: birth.day,
+        month: birth.month,
+        year: birth.year
+      }
+    });
+    
+    console.log("Birth information updated successfully");
+    res.status(200).send("Birth information updated successfully.");
+  } catch (error) {
+    console.error("Error updating birth information:", error);
+    res.status(500).send("Error updating birth information: " + error.message);
   }
 });
 
