@@ -5,10 +5,11 @@ var app = express();
 var port = 3001;
 const bcrypt = require("bcrypt");
 
-var serviceAccount = require("./projects/serviceaccount.json");
+var serviceAccount = require("./Service-account.json");
 
 app.use(cors({ origin: "*" }));
 app.use(express.json());
+
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -50,22 +51,36 @@ app.post("/login", async (req, res) => {
   try {
     const userSnapshot = await db.collection("users").where("email", "==", email).get();
 
+    // Handle case if no user is found
     if (userSnapshot.empty) {
       return res.status(404).send("User not found.");
     }
 
-    const userData = userSnapshot.docs[0].data();
+    let userFound = false;
 
-    const isPasswordCorrect = await bcrypt.compare(password, userData.password);
-    if (isPasswordCorrect) {
-      return res.status(200).send("Login successful.");
-    } else {
+    // Use a `for...of` loop to await `bcrypt.compare()` properly
+    for (let doc of userSnapshot.docs) {
+      const userData = doc.data();
+
+      // Compare password
+      const isPasswordCorrect = await bcrypt.compare(password, userData.password);
+      if (isPasswordCorrect) {
+        userFound = true;
+        return res.status(200).send("Login successful.");
+      }
+    }
+
+    // If no valid user is found after iterating
+    if (!userFound) {
       return res.status(401).send("Invalid password.");
     }
+
   } catch (error) {
     res.status(500).send("Error logging in: " + error.message);
+    console.error(error.message);
   }
 });
+
 
 
 
