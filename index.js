@@ -4,10 +4,54 @@ var cors = require("cors");
 var app = express();
 var port = 3001;
 const bcrypt = require("bcrypt");
+const passport = require('passport');
+var GoogleStrategy = require('passport-google-oauth20').Strategy;
+const session = require('express-session');
+
+// cookiee
+
+app.use(session({
+  secret: 'SecretKey',
+  resave: false, 
+  saveUninitialized: false,
+  cookie: { secure: false } 
+}));
+
+
+// cookiee end 
+
+
+
+// google auth - start
+
+// Google OAuth setup
+passport.use(new GoogleStrategy({
+  clientID: '274164021188-0os7tfjuhttv080jvh6noe6fnn4k3ll0.apps.googleusercontent.com',
+  clientSecret: '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',
+  callbackURL: '/auth/google/callback'
+},
+(accessToken, refreshToken, profile, done) => {
+  // Here you would save the profile info (id, name, etc.) to your database
+  done(null, profile);
+}
+));
+
+// Passport serialization
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
+
+// Initialize Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
+// google oauth - end
 
 var serviceAccount = require("./ServiceAccount.json");
 
-app.use(cors({ origin: "*" }));
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
 app.use(express.json());
 
 
@@ -40,6 +84,18 @@ app.post("/addUser", async (req, res) => {
     res.status(400).send("Error adding user: " + error.message);
   }
 });
+
+// auth
+
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile'] }));
+
+
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: 'http://localhost:3000' }),
+  (req, res) => {
+    res.redirect('http://localhost:3000/dashboard');
+  }
+);
+// auth end
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -84,7 +140,7 @@ app.post("/login", async (req, res) => {
 
 app.post("/BirthPost", async (req, res) => {
   const { email, username, Gender, birth } = req.body;
-  console.log(email, username, Gender, birth);
+  // console.log(email, username, Gender, birth);
   
 
   if (!email || !username || !Gender || !birth) {
@@ -120,6 +176,7 @@ app.post("/BirthPost", async (req, res) => {
     res.status(500).send("Error updating birth information: " + error.message);
   }
 });
+
 
 
 
