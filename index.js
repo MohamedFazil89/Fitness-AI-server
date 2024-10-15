@@ -177,12 +177,14 @@ app.post("/addUser", async (req, res) => {
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 
-app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: 'http://localhost:3000' }),
-  (req, res) => {
-
-    Status === false ? res.redirect('http://localhost:3000/dob') : res.redirect("http://localhost:3000/dashboard")
-
-    console.log("Session Status in callback:", Status);
+app.get('/auth/google/callback',  passport.authenticate('google', { failureRedirect: 'http://localhost:3000' }),
+ async (req, res)  => {
+    const email = req.user.email;
+    const userSnapshot = await db.collection("users").where("email", "==", email).get();
+    const userData = userSnapshot.docs[0].data();
+    const status = 'birth' in userData;
+    console.log("birth",status);
+    status ? res.redirect('http://localhost:3000/dashboard') : res.redirect("http://localhost:3000/dob")
 
   }
 );
