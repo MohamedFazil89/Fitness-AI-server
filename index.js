@@ -8,7 +8,7 @@ const passport = require('passport');
 var GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
 const env = require("dotenv");
-env.config(); 
+env.config();
 
 let Gmail = "";
 
@@ -16,9 +16,9 @@ let Gmail = "";
 
 app.use(session({
   secret: 'SecretKey',
-  resave: false, 
+  resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } 
+  cookie: { secure: false }
 }));
 
 
@@ -32,41 +32,57 @@ passport.use(new GoogleStrategy({
   clientID: process.env.CLIENT_ID,
   clientSecret: process.env.CLIENT_SECRET,
   callbackURL: '/auth/google/callback',
-  userProfileURL: 'https://www.googleapis.com/oauth2/v3/userinfo'
+  userProfileURL: 'https://www.googleapis.com/oauth2/v3/userinfo',
+  passReqToCallback: true // This allows passing the `req` object to the callback function
+
 },
-(accessToken, refreshToken, profile, done) => {
-  const email = profile.emails && profile.emails.length ? profile.emails[0].value : null;
-  console.log("Google Profile ID:", profile.id);
-  console.log("Google Profile Email:", email);
-  
-  // DB add
-  FireStore(email)
-  // db end
+  (req, accessToken, refreshToken, profile, done) => {
+    const email = profile.emails && profile.emails.length ? profile.emails[0].value : null;
+    console.log("Google Profile ID:", profile.id);
+    console.log("Google Profile Email:", email);
+
+    // DB add
+    FireStore(email, req)
+    // db end
 
 
 
-  done(null, { id: profile.id, email: email });
-  
-}));
+    done(null, { id: profile.id, email: email });
+
+  }));
 
 
+var Status = false;
 
-const FireStore = async (email) => {
+const FireStore = async (email, req) => {
   const snapshot = await db.collection("users").get();
   const count = snapshot.size;
 
-  // const hashedPassword = await bcrypt.hash(password, 10);
+  const userSnapshot = await db.collection("users").where("email", "==", email).get();
 
-  const newUserRef = db.collection("users").doc(String(count + 1));
+  if (!userSnapshot.empty) {
+    const userData = userSnapshot.docs[0].data();
+    if ('birth' in userData) {
+      console.log("Birth information exists:", userData.birth);
+      Status = true;
 
-  await newUserRef.set({
-    email: email,
-    AddedAt: admin.firestore.FieldValue.serverTimestamp(),
-    isOAuth: true
-  });
+    } else {
+      console.log("Birth information does not exist.");
+      Status = false;
 
+    }
+    console.log("Email already exist!");
 
+  } else {
 
+    const newUserRef = db.collection("users").doc(String(count + 1));
+
+    await newUserRef.set({
+      email: email,
+      AddedAt: admin.firestore.FieldValue.serverTimestamp(),
+      isOAuth: true
+    });
+  }
 }
 
 
@@ -115,6 +131,7 @@ app.get('/api/user', (req, res) => {
 
 // Session end
 
+
 app.post("/addUser", async (req, res) => {
   const { email, password } = req.body;
 
@@ -124,6 +141,7 @@ app.post("/addUser", async (req, res) => {
 
   try {
     const userSnapshot = await db.collection("users").where("email", "==", email).get();
+
 
     if (!userSnapshot.empty) {
       return res.status(400).send("Email already exists.");
@@ -155,15 +173,37 @@ app.post("/addUser", async (req, res) => {
 
 // auth
 
+
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: 'http://localhost:3000' }),
   (req, res) => {
-    res.redirect('http://localhost:3000/dob');
-    
+
+    Status === false ? res.redirect('http://localhost:3000/dob') : res.redirect("http://localhost:3000/dashboard")
+
+    console.log("Session Status in callback:", Status);
+
   }
 );
+
+
+app.post("/getStatus", (req, res) => {
+  const { Status } = req.body;
+  console.log("::", Status);
+
+
+
+  if (Status !== undefined) {
+    console.log("Status set in session:", req.session.Status);
+    res.status(200).send("Status set in session.");
+  } else {
+    res.status(400).send("Status not provided.");
+  }
+});
+
+
+
 // auth end
 
 app.post("/login", async (req, res) => {
@@ -209,7 +249,7 @@ app.post("/login", async (req, res) => {
 
 app.post("/BirthPost", async (req, res) => {
   const { email, username, Gender, birth: { day, month, year } } = req.body;
-  
+
 
   if (!email || !username || !Gender || !day || !month || !year) {
     return res.status(400).send("Email, username, gender, and complete birth date are required.");
@@ -227,7 +267,7 @@ app.post("/BirthPost", async (req, res) => {
     await userDoc.update({
       username: username,
       gender: Gender,
-      birth: { day, month, year } 
+      birth: { day, month, year }
     });
 
     res.status(200).send("Birth information updated successfully.");
