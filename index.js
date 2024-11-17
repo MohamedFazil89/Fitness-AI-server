@@ -10,7 +10,6 @@ const session = require('express-session');
 const env = require("dotenv");
 env.config();
 
-let Gmail = "";
 
 // cookiee
 
@@ -192,7 +191,7 @@ app.get('/auth/google/callback',  passport.authenticate('google', { failureRedir
 
 app.post("/getStatus", (req, res) => {
   const { Status } = req.body;
-  console.log("::", Status);
+  // console.log("::", Status);
 
 
 
