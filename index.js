@@ -8,7 +8,10 @@ const passport = require('passport');
 var GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
 const env = require("dotenv");
+const jwt = require('jsonwebtoken');
+
 env.config();
+
 
 
 // cookiee
@@ -168,21 +171,127 @@ app.post("/addUser", async (req, res) => {
     res.status(500).send("Error adding user: " + error.message);
   }
 });
+// Middleware to get user info from the Authorization header
+const getUserInfo = (req, res, next) => {
+  const authHeader = req.headers.authorization;
 
 
-// auth
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Authentication token required" });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+
+    const decoded = jwt.verify(token, "SecretKey");
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ message: "Invalid token" });
+  }
+};
+
+// create chat function
+
+const CreateChat = async (id, users, messages) =>{
+  const chatRef = db.collection("chats").doc(id).get()
+  if(chatRef.exists){
+    console.log("chat already exists")
+    return;
+  }
+  try{
+    db.collection("chats").doc(`chat${id}`).set({
+      users,
+      messages,
+      AddedAt: admin.firestore.FieldValue.serverTimestamp(),
+    })
+    console.log("chat created");
+    
+  }catch{
+    console.log("Error creating chat")
+  }
+}
+ 
+// end chat function
+
+
+const chat = [
+  {
+    id: 1, messages: [
+      {
+        users: ["user1, user2"], content: [
+          {
+            role: "username",
+            message: "Hi, how are you?"
+          },
+          {
+            role: "username",
+            message: "I'm doing well. How about you?"
+          },
+          {
+            role: "username",
+            message: "I'm excited to see where we'll go!"
+          },
+          {
+            role: "username",
+            message: "Let's go to the park tomorrow!"
+          },
+          {
+            role: "username",
+            message: "Great, I'm on my way!"
+          }
+        ]
+      }
+    ]
+
+  }
+]
+
+// Usage in a route
+app.get("/CurrentUserInfo", (req, res) => {
+  // const chats = db.collection("chats").doc(req.body.chatID).get();
+  
+const chatid = 2
+const users = [{ user1: "user1", user2: "user2"}]
+const messages = [
+  { role: "sender", message: "Hi! how are you"},
+  { role: "receiver", message: "I'm good, thanks"},
+  { role: "sender", message: "I'm excited to see where we'll go"},
+  { role: "receiver", message: "Let's go to the park tomorrow"},
+  { role: "sender", message: "Great, I'm on my way"}
+]
+CreateChat(chatid, users, messages);
+
+const content = db.collection("chats").doc(`chat${chatid}`).get();
+res.json(content);
+
+
+
+  // res.json({
+  //   oppositeUser: "John Doe",
+  //   messages: [
+  //     { role: "receiver", message: "Hey, are we still on for tomorrow?" },
+  //     { role: "sender", message: "Yes, 5 PM works perfectly!" },
+  //   ],
+  //   isFollowing: false,
+  // });
+
+
+});
+
 
 
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 
-app.get('/auth/google/callback',  passport.authenticate('google', { failureRedirect: 'http://localhost:3000' }),
- async (req, res)  => {
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: 'http://localhost:3000' }),
+  async (req, res) => {
     const email = req.user.email;
     const userSnapshot = await db.collection("users").where("email", "==", email).get();
     const userData = userSnapshot.docs[0].data();
     const status = 'birth' in userData;
-    console.log("birth",status);
+    console.log("birth", status);
     status ? res.redirect('http://localhost:3000/dashboard') : res.redirect("http://localhost:3000/dob")
 
   }
@@ -232,7 +341,13 @@ app.post("/login", async (req, res) => {
       const isPasswordCorrect = await bcrypt.compare(password, userData.password);
       if (isPasswordCorrect) {
         userFound = true;
-        return res.status(200).send("Login successful.");
+        const token = jwt.sign({ email: userData.email }, "SecretKey", { expiresIn: "1h" });
+        console.log(token);
+
+
+
+        return res.status(200).json({ message: "Login successful.", token });
+
       }
     }
 
@@ -258,9 +373,14 @@ app.post("/BirthPost", async (req, res) => {
 
   try {
     const userSnapshot = await db.collection("users").where("email", "==", email).get();
+    const userName = await db.collection("users").where("username", "==", username).get();
+
 
     if (userSnapshot.empty) {
       return res.status(404).send("User not found.");
+    }
+    if (userName === username) {
+      return res.status(400).send("Username already exists.");
     }
 
     const userDoc = userSnapshot.docs[0].ref;
