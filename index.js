@@ -12,7 +12,7 @@ const jwt = require('jsonwebtoken');
 
 env.config();
 
-
+let tempID = null;
 
 // cookiee
 
@@ -156,13 +156,17 @@ app.post("/addUser", async (req, res) => {
 
     const newUserRef = db.collection("users").doc(String(count + 1));
 
-    await newUserRef.set({
+    const userDoc = await newUserRef.set({
       email: email,
       password: hashedPassword,
       AddedAt: admin.firestore.FieldValue.serverTimestamp(),
       isOAuth: false
     });
-
+    console.log("doc is created",userDoc.id);
+    // localStorage.setItem("TempDoc", userDoc.id);
+    // tempID = userDoc.id;
+    req.session.tempID = userDoc.id;
+    
     console.log("User added successfully with custom ID:", count + 1);
     res.status(200).send("User added successfully.");
 
@@ -171,82 +175,52 @@ app.post("/addUser", async (req, res) => {
     res.status(500).send("Error adding user: " + error.message);
   }
 });
+
+
 // Middleware to get user info from the Authorization header
-const getUserInfo = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+// const getUserInfo = (req, res, next) => {
+//   const authHeader = req.headers.authorization;
 
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Authentication token required" });
-  }
+//   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//     return res.status(401).json({ message: "Authentication token required" });
+//   }
 
-  const token = authHeader.split(" ")[1];
+//   const token = authHeader.split(" ")[1];
 
-  try {
+//   try {
 
-    const decoded = jwt.verify(token, "SecretKey");
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(401).json({ message: "Invalid token" });
-  }
-};
+//     const decoded = jwt.verify(token, "SecretKey");
+//     req.user = decoded;
+//     next();
+//   } catch (err) {
+//     res.status(401).json({ message: "Invalid token" });
+//   }
+// };
 
 // create chat function
 
-const CreateChat = async (id, users, messages) =>{
-  const chatRef = db.collection("chats").doc(id).get()
-  if(chatRef.exists){
-    console.log("chat already exists")
-    return;
-  }
-  try{
-    db.collection("chats").doc(`chat${id}`).set({
-      users,
-      messages,
-      AddedAt: admin.firestore.FieldValue.serverTimestamp(),
-    })
-    console.log("chat created");
+// const CreateChat = async (id, users, messages) =>{
+//   const chatRef = db.collection("chats").doc(id).get()
+//   if(chatRef.exists){
+//     console.log("chat already exists")
+//     return;
+//   }
+//   try{
+//     db.collection("chats").doc(`chat${id}`).set({
+//       users,
+//       messages,
+//       AddedAt: admin.firestore.FieldValue.serverTimestamp(),
+//     })
+//     console.log("chat created");
     
-  }catch{
-    console.log("Error creating chat")
-  }
-}
+//   }catch{
+//     console.log("Error creating chat")
+//   }
+// }
  
 // end chat function
 
-
-const chat = [
-  {
-    id: 1, messages: [
-      {
-        users: ["user1, user2"], content: [
-          {
-            role: "username",
-            message: "Hi, how are you?"
-          },
-          {
-            role: "username",
-            message: "I'm doing well. How about you?"
-          },
-          {
-            role: "username",
-            message: "I'm excited to see where we'll go!"
-          },
-          {
-            role: "username",
-            message: "Let's go to the park tomorrow!"
-          },
-          {
-            role: "username",
-            message: "Great, I'm on my way!"
-          }
-        ]
-      }
-    ]
-
-  }
-]
 
 // Usage in a route
 app.get("/CurrentUserInfo", (req, res) => {
@@ -376,20 +350,40 @@ app.post("/BirthPost", async (req, res) => {
     const userName = await db.collection("users").where("username", "==", username).get();
 
 
+
     if (userSnapshot.empty) {
       return res.status(404).send("User not found.");
+      console.log("user name not found");
+      
     }
-    if (userName === username) {
+    if (!userName.empty) {
+      console.log("username already exist");
       return res.status(400).send("Username already exists.");
+      
     }
 
     const userDoc = userSnapshot.docs[0].ref;
+    const snopshotSize = (await db.collection("users").get()).size
+    const ID = snopshotSize;
+    console.log(snopshotSize);
+    
+    const tempDoc = db.collection("users").doc(String(ID)).get();
+    
+    // const userID = userSnapshot.docs[0].id;
+    // await db.collection("users").doc(userID).update({
+    //   id: username
+    // })
+    // console.log(userDoc, "this is the id var", "-->", userDocs);
+    
+    const data = (await tempDoc).data();
 
-    await userDoc.update({
+    await db.collection("users").doc(username).set({
+      ...data,
       username: username,
       gender: Gender,
       birth: { day, month, year }
     });
+    await db.collection("users").doc(String(ID)).delete();
 
     res.status(200).send("Birth information updated successfully.");
   } catch (error) {
