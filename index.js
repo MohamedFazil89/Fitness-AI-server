@@ -223,8 +223,9 @@ app.post("/addUser", async (req, res) => {
 
 
 // Usage in a route
-app.get("/CurrentUserInfo", (req, res) => {
-  // const chats = db.collection("chats").doc(req.body.chatID).get();
+app.get("/CurrentUserInfo", async (req, res) => {
+  
+  
   
 const chatid = 2
 const users = [{ user1: "user1", user2: "user2"}]
@@ -235,23 +236,42 @@ const messages = [
   { role: "receiver", message: "Let's go to the park tomorrow"},
   { role: "sender", message: "Great, I'm on my way"}
 ]
-CreateChat(chatid, users, messages);
+// CreateChat(chatid, users, messages);
 
-const content = db.collection("chats").doc(`chat${chatid}`).get();
-res.json(content);
-
-
-
-  // res.json({
-  //   oppositeUser: "John Doe",
-  //   messages: [
-  //     { role: "receiver", message: "Hey, are we still on for tomorrow?" },
-  //     { role: "sender", message: "Yes, 5 PM works perfectly!" },
-  //   ],
-  //   isFollowing: false,
-  // });
+// const content = db.collection("chats").doc(`chat${chatid}`).get();
+// res.json(content);
 
 
+
+  res.json({
+    oppositeUser: "John Doe",
+    messages: [
+      { role: "receiver", message: "Hey, are we still on for tomorrow?" },
+      { role: "sender", message: "Yes, 5 PM works perfectly!" },
+    ],
+    isFollowing: false,
+  });
+
+
+});
+
+app.get("/ChatList", async (req, res) => {
+  try {
+    const chats = await db.collection("users").get();
+    const users = []; 
+
+    chats.forEach((doc) => {
+      console.log(doc.data().username); 
+      users.push(doc.data().username); 
+    });
+
+    res.json({
+      usernames: users, 
+    });
+  } catch (error) {
+    console.error("Error fetching chat list:", error);
+    res.status(500).json({ error: "Failed to fetch chat list" }); 
+  }
 });
 
 
