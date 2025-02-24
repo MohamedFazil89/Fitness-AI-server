@@ -9,6 +9,7 @@ var GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
 const env = require("dotenv");
 const jwt = require('jsonwebtoken');
+const axios = require("axios");
 
 env.config();
 
@@ -412,11 +413,51 @@ app.post("/BirthPost", async (req, res) => {
   }
 });
 
+// Mental health API code
 
+app.get('/api/questions', async (req, res) => {
+  try {
+      const response = await axios.get('http://localhost:5000/questions');
+      res.json(response.data);
+  } catch (error) {
+      console.error('Error fetching questions:', error);
+      res.status(500).send('Server Error');
+  }
+});
 
+// ----------------------------------------
 
+app.post('/api/submit', async (req, res) => {
+  try {
+      const formattedData = {
+          responses: Object.keys(req.body).map(questionId => ({
+              id: parseInt(questionId),
+              value: req.body[questionId]
+          }))
+      };
+      console.log('Formatted data to send to Flask:', formattedData);
+      const response = await axios.post('http://localhost:5000/analyze', formattedData);
+      res.json(response.data);
+  } catch (error) {
+      console.error('Error submitting data:', error);
+      res.status(500).send('Server Error');
+  }
+});
 
+// -------------------------------------------------
 
+app.post('/api/face-recognition', async (req, res) => {
+  try {
+      const { image } = req.body;
+      const response = await axios.post('http://localhost:5000/face-recognition', { image });
+      res.json(response.data);
+  } catch (error) {
+      console.error('Error processing face data:', error);
+      res.status(500).send('Server Error');
+  }
+});
+
+// ----------------------------------------
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
